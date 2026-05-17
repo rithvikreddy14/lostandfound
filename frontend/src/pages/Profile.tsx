@@ -21,7 +21,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // Assuming this ShadCN component path is correct
+} from "@/components/ui/alert-dialog"; 
+
+// --- DYNAMIC API URL SETUP ---
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const BACKEND_URL = API_BASE_URL.replace('/api', '');
 
 interface UserData {
   _id: string;
@@ -61,7 +65,6 @@ const Profile = () => {
   const [userItems, setUserItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // NEW STATE: For handling the resolution dialog
   const [isResolutionDialogOpen, setIsResolutionDialogOpen] = useState(false);
   const [itemToResolve, setItemToResolve] = useState<Item | null>(null);
 
@@ -75,14 +78,13 @@ const Profile = () => {
     }
     setIsLoading(true);
     try {
-      // 1. Fetch authenticated user data (user profile and stats)
-      const userResponse = await fetch("http://localhost:5000/api/users/me", {
-        headers: { "Authorization": `Bearer ${token}` }, // <-- AUTHENTICATED
+      // DYNAMIC URL ADDED HERE
+      const userResponse = await fetch(`${API_BASE_URL}/users/me`, {
+        headers: { "Authorization": `Bearer ${token}` },
       });
       
-      // 2. Fetch items belonging ONLY to this user (user_id=me)
-      const itemsResponse = await fetch("http://localhost:5000/api/items?user_id=me", {
-        headers: { "Authorization": `Bearer ${token}` }, // <-- AUTHENTICATED
+      const itemsResponse = await fetch(`${API_BASE_URL}/items?user_id=me`, {
+        headers: { "Authorization": `Bearer ${token}` },
       });
 
       if (userResponse.ok) {
@@ -94,7 +96,7 @@ const Profile = () => {
 
       if (itemsResponse.ok) {
         const itemsData = await itemsResponse.json();
-        setUserItems(itemsData.items); // Render dynamic, user-specific items
+        setUserItems(itemsData.items); 
       }
       
     } catch (error: any) {
@@ -103,7 +105,6 @@ const Profile = () => {
         description: error.message,
         variant: "destructive",
       });
-      // If profile fails to load (e.g., token expired), redirect to login
       if (error.message.includes("401")) {
          navigate("/");
       }
@@ -119,11 +120,12 @@ const Profile = () => {
 
   const handleSave = async () => {
     if (!userData) return;
-    setIsEditing(false); // Optimistically close edit mode
+    setIsEditing(false); 
     const token = localStorage.getItem("token");
 
     try {
-      const response = await fetch("http://localhost:5000/api/users/me", {
+      // DYNAMIC URL ADDED HERE
+      const response = await fetch(`${API_BASE_URL}/users/me`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -157,7 +159,6 @@ const Profile = () => {
     }
   };
 
-  // --- NEW: Function to handle resolution of an item ---
   const handleResolveItem = (item: Item) => {
     setItemToResolve(item);
     setIsResolutionDialogOpen(true);
@@ -169,7 +170,9 @@ const Profile = () => {
     const itemId = itemToResolve._id;
     const token = localStorage.getItem("token");
     const method = resolutionType === 'resolved' ? "PUT" : "DELETE";
-    const endpoint = `http://localhost:5000/api/items/${itemId}`;
+    
+    // DYNAMIC URL ADDED HERE
+    const endpoint = `${API_BASE_URL}/items/${itemId}`;
     const body = resolutionType === 'resolved' ? JSON.stringify({ status: 'resolved' }) : undefined;
 
     setIsResolutionDialogOpen(false);
@@ -185,7 +188,6 @@ const Profile = () => {
       });
 
       if (response.ok) {
-        // Refresh items and stats to show new state
         fetchUserProfile(); 
         
         toast({
@@ -208,15 +210,13 @@ const Profile = () => {
       setItemToResolve(null);
     }
   };
-  // --- END NEW RESOLUTION LOGIC ---
-
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-blue-100 text-blue-800';
       case 'matched': return 'bg-yellow-100 text-yellow-800';
       case 'found': return 'bg-green-100 text-green-800';
-      case 'resolved': return 'bg-accent/20 text-accent'; // Highlight successful resolution
+      case 'resolved': return 'bg-accent/20 text-accent'; 
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -241,7 +241,6 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <Link to="/home" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="h-4 w-4" />
@@ -250,7 +249,6 @@ const Profile = () => {
         </div>
 
         <div className="grid lg:grid-cols-4 gap-8">
-          {/* Profile Card */}
           <div className="lg:col-span-1">
             <Card className="card-elegant sticky top-8">
               <CardContent className="pt-6">
@@ -269,7 +267,6 @@ const Profile = () => {
                         Verified
                       </Badge>
                     )}
-                    {/* Removed: User rating display */}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t">
@@ -287,7 +284,6 @@ const Profile = () => {
             </Card>
           </div>
 
-          {/* Main Content */}
           <div className="lg:col-span-3">
             <Tabs defaultValue="items" className="space-y-6">
               <TabsList className="grid w-full grid-cols-3">
@@ -296,7 +292,6 @@ const Profile = () => {
                 <TabsTrigger value="stats">Statistics</TabsTrigger>
               </TabsList>
 
-              {/* My Items Tab - Displays ONLY User's Items */}
               <TabsContent value="items" className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-2xl font-bold">My Items</h3>
@@ -320,8 +315,9 @@ const Profile = () => {
                     >
                       <Card className="card-hover">
                         <div className="relative">
+                          {/* DYNAMIC IMAGE URL ADDED HERE */}
                           <img
-                            src={`http://localhost:5000${item.images[0]}`}
+                            src={`${BACKEND_URL}${item.images[0]}`}
                             alt={item.title}
                             className="w-full h-48 object-cover rounded-t-lg"
                           />
@@ -334,19 +330,17 @@ const Profile = () => {
                             </Badge>
                           </div>
                           <div className="absolute top-3 right-3 flex gap-2">
-                            {/* Option 1: Edit button (Placeholder) */}
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0 bg-background/80">
                               <Edit className="h-4 w-4" />
                             </Button>
                             
-                            {/* Option 2: Resolve/Delete Button (Triggers Modal) */}
                             <Button 
                               size="sm" 
                               variant="ghost" 
                               className={`h-8 w-8 p-0 bg-background/80 hover:bg-destructive/80 transition-colors ${item.status === 'resolved' ? 'opacity-50 cursor-default' : ''}`}
                               onClick={(e) => {
                                   e.preventDefault();
-                                  handleResolveItem(item); // Triggers the custom resolution flow
+                                  handleResolveItem(item); 
                               }}
                               disabled={item.status === 'resolved'}
                             >
@@ -369,7 +363,6 @@ const Profile = () => {
                           </div>
                           <div className="flex justify-between items-center text-sm">
                             <div className="flex items-center gap-3">
-                              {/* Removed: Matches: {item.matches || 0} */}
                             </div>
                             <Link to={`/items/${item._id}`}>
                               <Button variant="outline" size="sm">
@@ -384,7 +377,6 @@ const Profile = () => {
                 </Masonry>
               </TabsContent>
 
-              {/* Profile Tab */}
               <TabsContent value="profile" className="space-y-6">
                 <Card className="card-elegant">
                   <CardHeader>
@@ -448,7 +440,6 @@ const Profile = () => {
                 </Card>
               </TabsContent>
 
-              {/* Statistics Tab */}
               <TabsContent value="stats" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <Card className="card-elegant">
@@ -503,7 +494,6 @@ const Profile = () => {
         </div>
       </div>
       
-      {/* --- Resolution/Deletion Modal (AlertDialog) --- */}
       <AlertDialog open={isResolutionDialogOpen} onOpenChange={setIsResolutionDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -515,7 +505,6 @@ const Profile = () => {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setItemToResolve(null)}>Cancel</AlertDialogCancel>
             
-            {/* Resolution Option */}
             <Button 
                 variant="default" 
                 onClick={() => finalizeResolution('resolved')}
@@ -526,7 +515,6 @@ const Profile = () => {
                 Mark as Resolved
             </Button>
             
-            {/* Deletion Option */}
             <Button 
                 variant="destructive" 
                 onClick={() => finalizeResolution('deleted')}
@@ -538,7 +526,6 @@ const Profile = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {/* ----------------------------------------------- */}
     </div>
   );
 };

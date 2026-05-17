@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"; // <-- UPDATED: Import useCallback
+import { useState, useCallback } from "react"; 
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, ArrowRight, Upload, MapPin, Calendar, Package, Tag, Camera } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import Map from "@/components/Map"; // Import the Map component
+import Map from "@/components/Map"; 
+
+// --- DYNAMIC API URL SETUP ---
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const steps = [
   { id: 1, title: "Item Type", description: "Lost or Found?" },
@@ -36,10 +39,10 @@ const AddItem = () => {
     category: "",
     tags: [] as string[],
     images: [] as File[],
-    location: "", // Location name string
+    location: "", 
     dateOccurred: ""
   });
-  // NEW STATE: To hold precise coordinates selected on the map
+  
   const [locationCoords, setLocationCoords] = useState<{ latitude: number | null, longitude: number | null }>({
     latitude: null,
     longitude: null
@@ -53,7 +56,6 @@ const AddItem = () => {
   const progress = (currentStep / steps.length) * 100;
 
   const nextStep = () => {
-    // Validation logic (block progress if critical data is missing)
     if (currentStep === 1 && !formData.type) return;
     if (currentStep === 2 && (!formData.title || !formData.description)) return;
     if (currentStep === 3 && !formData.category) return;
@@ -65,9 +67,7 @@ const AddItem = () => {
         });
         return;
     }
-    // Validation for Step 5: Must have EITHER location name OR coordinates
     if (currentStep === 5 && !formData.dateOccurred) return;
-
 
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
@@ -102,12 +102,11 @@ const AddItem = () => {
       const newImages = Array.from(e.target.files);
       setFormData({
         ...formData,
-        images: [...formData.images, ...newImages].slice(0, 5) // Max 5 images
+        images: [...formData.images, ...newImages].slice(0, 5) 
       });
     }
   };
   
-  // FIXED: Use useCallback to stabilize the function passed to the Map component
   const handleLocationSelect = useCallback((lat: number, lng: number) => {
     setLocationCoords({ latitude: lat, longitude: lng });
     toast({
@@ -115,10 +114,9 @@ const AddItem = () => {
         description: `Coordinates set to Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`,
         variant: "default",
     });
-  }, [toast]); // Include toast in dependencies if needed, or remove if static
+  }, [toast]); 
 
   const handleSubmit = async () => {
-    // Final validation check
     if (!formData.location && (!locationCoords.latitude || !locationCoords.longitude)) {
         toast({
             title: "Validation Error",
@@ -144,7 +142,6 @@ const AddItem = () => {
     form.append("location", formData.location);
     form.append("date_occurred", formData.dateOccurred);
     
-    // Append precise coordinates if they were selected
     if (locationCoords.latitude !== null && locationCoords.longitude !== null) {
       form.append("latitude", String(locationCoords.latitude));
       form.append("longitude", String(locationCoords.longitude));
@@ -155,7 +152,8 @@ const AddItem = () => {
     });
     
     try {
-      const response = await fetch("http://localhost:5000/api/items", {
+      // DYNAMIC URL ADDED HERE
+      const response = await fetch(`${API_BASE_URL}/items`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: form,
@@ -409,7 +407,6 @@ const AddItem = () => {
               </div>
             </div>
             
-            {/* UPDATED: Interactive Map Component for coordinate selection */}
             <div className="space-y-2">
               <Label>Select Location on Map (Recommended for Precision)</Label>
               <Card className="p-4">
@@ -418,7 +415,7 @@ const AddItem = () => {
                   latitude={locationCoords.latitude}
                   longitude={locationCoords.longitude}
                   onLocationSelect={handleLocationSelect}
-                  className="h-80" // Ensure map has height
+                  className="h-80" 
                 />
                 {locationCoords.latitude !== null && (
                     <p className="text-sm text-muted-foreground mt-2">
@@ -453,10 +450,9 @@ const AddItem = () => {
     }
   };
 
-  // Determine if the submit button should be enabled
   const isSubmitDisabled = isLoading || 
-    (currentStep === 5 && !formData.dateOccurred) || // Date is required
-    (currentStep === 5 && !formData.location && (!locationCoords.latitude || !locationCoords.longitude)); // EITHER location name OR coordinates required
+    (currentStep === 5 && !formData.dateOccurred) || 
+    (currentStep === 5 && !formData.location && (!locationCoords.latitude || !locationCoords.longitude)); 
 
   return (
     <div className="min-h-screen bg-background py-8">

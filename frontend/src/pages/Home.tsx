@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-// --- Importing all necessary Lucide icons ---
 import { Search, Plus, MapPin, Calendar, LogOut, Filter, Zap, Shield, MessageSquare, Globe, Cpu, UserCheck } from "lucide-react"; 
 import { Link, useNavigate } from "react-router-dom";
 import Masonry from "react-masonry-css";
@@ -14,7 +13,10 @@ import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, parseISO } from 'date-fns';
 
-// --- ITEM INTERFACE ---
+// --- DYNAMIC API URL SETUP ---
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const BACKEND_URL = API_BASE_URL.replace('/api', '');
+
 interface Item {
   _id: string;
   type: 'lost' | 'found';
@@ -29,9 +31,7 @@ interface Item {
   matches?: number;          
   bestMatchScore?: number;   
 }
-// -------------------------------------------------------------------
 
-// --- UPDATED: FeatureCard component for side-by-side layout (requested change) ---
 const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: string, description: string }) => (
     <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -43,11 +43,9 @@ const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: str
         <Card className="card-elegant h-full p-4">
             <CardContent className="p-0">
                 <div className="flex items-start gap-4">
-                    {/* Icon - Left Side */}
                     <div className="p-3 w-fit rounded-xl bg-primary/10 text-primary flex-shrink-0">
                         <Icon className="h-6 w-6" />
                     </div>
-                    {/* Text - Right Side */}
                     <div>
                         <CardTitle className="text-xl mb-1 text-left">{title}</CardTitle>
                         <CardDescription className="text-left">{description}</CardDescription>
@@ -57,7 +55,6 @@ const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: str
         </Card>
     </motion.div>
 );
-// --- END UPDATED FeatureCard ---
 
 const Home = () => {
   const navigate = useNavigate();
@@ -80,8 +77,8 @@ const Home = () => {
       const headers = token ? { "Authorization": `Bearer ${token}` } : {};
 
       try {
-        const statsResponse = await fetch("http://localhost:5000/api/items/stats", { headers });
-        const itemsResponse = await fetch(`http://localhost:5000/api/items?type=${filter === 'all' ? '' : filter}&search=${searchQuery}`, { headers });
+        const statsResponse = await fetch(`${API_BASE_URL}/items/stats`, { headers });
+        const itemsResponse = await fetch(`${API_BASE_URL}/items?type=${filter === 'all' ? '' : filter}&search=${searchQuery}`, { headers });
 
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
@@ -112,22 +109,18 @@ const Home = () => {
   };
   
   const getStatusClasses = (status: string) => {
-    // ACTIVE/RESOLVED: White background, Black text
     return 'bg-white text-black border border-gray-300'; 
   }
   
   const getTypeClasses = (type: string) => {
     if (type === 'found') {
-        // FOUND: Green background, White text
         return 'bg-green-500 text-white'; 
     }
-    // LOST: Red background, White text
     return 'bg-red-500 text-white'; 
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation (Omitted for brevity, assumed correct) */}
       <nav className="border-b border-border/50 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -157,7 +150,6 @@ const Home = () => {
         </div>
       </nav>
 
-      {/* Hero Section (Omitted for brevity, assumed correct) */}
       <section 
         className="relative py-20 hero-gradient overflow-hidden"
         style={{
@@ -185,7 +177,6 @@ const Home = () => {
                 Report, search, and recover with confidence.
               </p>
               
-              {/* Search Bar */}
               <div className="relative max-w-lg mx-auto lg:mx-0 mb-6">
                 <Search className="absolute left-4 top-4 h-5 w-5 text-muted-foreground" />
                 <Input
@@ -225,7 +216,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
       <section className="py-16 bg-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -251,7 +241,6 @@ const Home = () => {
             >
               <Card className="card-elegant text-center">
                 <CardContent className="pt-6">
-                  {/* DISPLAY: Uses the updated stat from item_model.py which now reflects active lost items */}
                   <div className="text-3xl font-bold text-destructive mb-2">
                     {stats.items_still_lost.toLocaleString()} 
                   </div>
@@ -278,7 +267,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Recent Items */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -292,7 +280,6 @@ const Home = () => {
               Browse the latest lost and found items. AI matching helps find potential matches automatically.
             </p>
             
-            {/* Filter Buttons */}
             <div className="flex justify-center gap-2 mb-6">
               <Button 
                 variant={filter === "all" ? "default" : "outline"}
@@ -336,21 +323,18 @@ const Home = () => {
                 <Link to={`/items/${item._id}`}>
                   <Card className="card-hover cursor-pointer">
                     <div className="relative">
-                      {/* --- Image (The primary content) --- */}
                       <img
-                        src={`http://localhost:5000${item.images[0]}`}
+                        src={`${BACKEND_URL}${item.images[0]}`}
                         alt={item.title}
                         className="w-full h-48 object-cover rounded-t-lg"
                       />
                       
-                      {/* 1. Item Type Badge (LOST/FOUND) - Top Left, Color, WHITE Text */}
                       <Badge
                         className={`absolute top-3 left-3 ${getTypeClasses(item.type)}`}
                       >
                         {item.type.toUpperCase()}
                       </Badge>
 
-                      {/* 2. Status Badge (ACTIVE/RESOLVED) - Top Right, White Background, Black Text */}
                       {item.status && (
                           <Badge
                             className={`absolute top-3 right-3 ${getStatusClasses(item.status)}`}
@@ -361,7 +345,6 @@ const Home = () => {
                       
                     </div>
                     <CardContent className="p-4">
-                      {/* The "0" must be removed by structural change and final JavaScript evaluation */}
                       <CardTitle className="text-lg mb-2">{item.title}</CardTitle>
                       <CardDescription className="mb-3">
                         {item.description}
@@ -376,9 +359,7 @@ const Home = () => {
                       </div>
                       
                       <div className="flex justify-between items-center text-sm">
-                         {/* Removed: Matches: {item.matches !== undefined ? item.matches : 0} */}
                         <div className="flex items-center gap-1 text-muted-foreground opacity-0">
-                            {/* Hidden Spacer */}
                             <Zap className="h-3 w-3 text-primary" />
                         </div>
                         <div className="flex flex-wrap gap-1">
@@ -404,7 +385,6 @@ const Home = () => {
         </div>
       </section>
       
-      {/* --- HOW IT WORKS / FEATURES SECTION (UPDATED LAYOUT) --- */}
       <section className="py-20 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
               <motion.h2 
@@ -460,7 +440,6 @@ const Home = () => {
               </div>
           </div>
       </section>
-      {/* ---------------------------------------------------- */}
       <Footer />
     </div>
   );

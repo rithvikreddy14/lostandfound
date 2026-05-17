@@ -5,15 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-// Imported Database icon for the Total Items Processed metric
-import { ArrowLeft, MapPin, Calendar, User, MessageCircle, Heart, Share2, Eye, Star, Database, Clock } from "lucide-react"; 
+import { ArrowLeft, MapPin, Calendar, User, MessageCircle, Heart, Share2, Eye, Database, Clock } from "lucide-react"; 
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import Map from "@/components/Map";
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"; 
 
-// Define the types for the data you expect from the backend
+// --- DYNAMIC API URL SETUP ---
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const BACKEND_URL = API_BASE_URL.replace('/api', '');
+
 interface UserDetails {
   name: string;
   email: string;
@@ -49,10 +51,9 @@ interface Match {
   image: string;
   user: string;
   email: string;
-  date_occurred?: string; // Added date_occurred for match item
+  date_occurred?: string;
 }
 
-// State for global stats
 interface GlobalStats {
     total_items: number;
     items_still_lost: number;
@@ -84,15 +85,14 @@ const ItemDetails = () => {
         return;
       }
       try {
-        // Fetch item details, match results, and global stats concurrently
         const [itemResponse, matchesResponse, statsResponse] = await Promise.all([
-          fetch(`http://localhost:5000/api/items/${id}`, {
+          fetch(`${API_BASE_URL}/items/${id}`, {
             headers: { "Authorization": `Bearer ${token}` },
           }),
-          fetch(`http://localhost:5000/api/matches/${id}`, {
+          fetch(`${API_BASE_URL}/matches/${id}`, {
             headers: { "Authorization": `Bearer ${token}` },
           }),
-          fetch(`http://localhost:5000/api/items/stats`, { 
+          fetch(`${API_BASE_URL}/items/stats`, { 
             headers: { "Authorization": `Bearer ${token}` },
           }),
         ]);
@@ -124,7 +124,6 @@ const ItemDetails = () => {
     fetchItemDetails();
   }, [id, navigate, toast]);
 
-  // NEW: Handle Copy Email and Toast Notification
   const handleCopyAndContact = async (email: string, userName: string) => {
     if (!email) {
       toast({
@@ -155,10 +154,8 @@ const ItemDetails = () => {
     }
   };
 
-
   const getScoreColor = (score: number) => {
     const percentage = score * 100;
-    
     if (percentage >= 85) return "text-foreground"; 
     if (percentage >= 70) return "text-warning";
     return "text-muted-foreground";
@@ -166,7 +163,6 @@ const ItemDetails = () => {
   
   const getBadgeVariant = (score: number) => {
     const percentage = score * 100;
-
     if (percentage >= 85) return "secondary"; 
     if (percentage >= 70) return "outline";
     return "outline";
@@ -203,7 +199,6 @@ const ItemDetails = () => {
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <Link to="/home" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="h-4 w-4" />
@@ -212,19 +207,16 @@ const ItemDetails = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Item Info */}
             <Card className="card-elegant">
               <CardContent className="p-0">
-                {/* Image Gallery */}
                 <div className="relative">
                   <motion.img
                     key={currentImage}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
-                    src={`http://localhost:5000${item.images[currentImage]}`}
+                    src={`${BACKEND_URL}${item.images[currentImage]}`}
                     alt={item.title}
                     className="w-full h-80 object-cover rounded-t-lg"
                   />
@@ -235,7 +227,6 @@ const ItemDetails = () => {
                     {item.type.toUpperCase()}
                   </Badge>
 
-                  {/* Image Navigation */}
                   {item.images.length > 1 && (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
                       {item.images.map((_, index) => (
@@ -291,7 +282,6 @@ const ItemDetails = () => {
 
                   <Separator className="my-6" />
 
-                  {/* User Info */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-12 h-12 rounded-full border">
@@ -309,11 +299,9 @@ const ItemDetails = () => {
                             </Badge>
                           )}
                         </div>
-                        {/* REMOVED: User rating display was here */}
                       </div>
                     </div>
 
-                    {/* FIXED: Changed button action to Copy Email and display Toast */}
                     <Button 
                       className="flex items-center gap-2" 
                       onClick={() => handleCopyAndContact(item.user.email, item.user.name)}
@@ -326,7 +314,6 @@ const ItemDetails = () => {
               </CardContent>
             </Card>
 
-            {/* Map Section */}
             <Card className="card-elegant">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -343,7 +330,6 @@ const ItemDetails = () => {
             </Card>
           </div>
 
-          {/* Sidebar - Dynamic AI Matches */}
           <div className="space-y-6">
             <Card className="card-elegant">
               <CardHeader>
@@ -368,17 +354,15 @@ const ItemDetails = () => {
                     >
                       <div className="flex gap-3">
                         <img
-                          src={`http://localhost:5000${match.image}`}
+                          src={`${BACKEND_URL}${match.image}`}
                           alt={match.title}
                           className="w-16 h-16 rounded-lg object-cover"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-2">
                             <div>
-                                {/* 1. FIXED: Added max-w-[150px] and truncate class for title overflow */}
                               <h4 className="font-medium text-sm max-w-[150px] truncate">{match.title}</h4> 
                               <p className="text-xs text-muted-foreground">by {match.user}</p>
-                              {/* UX SUGGESTION: Added match item date for better context */}
                               {match.date_occurred && (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                     <Clock className="h-3 w-3" />
@@ -395,7 +379,6 @@ const ItemDetails = () => {
                           </div>
 
                           <div className="space-y-1 mb-3">
-                            {/* AI Match Scores - Dynamic Progress Bars */}
                             <div className="flex justify-between text-xs">
                               <span>Image Match</span>
                               <span>{Math.round(match.imageScore * 100)}%</span>
@@ -415,7 +398,6 @@ const ItemDetails = () => {
                             <Progress value={match.locationScore * 100} className="h-1" />
                           </div>
 
-                          {/* Action Button */}
                           <Link to={`/items/${match.id}`} className="w-full">
                             <Button
                               size="sm"
@@ -440,7 +422,6 @@ const ItemDetails = () => {
               </CardContent>
             </Card>
 
-            {/* Quick Stats */}
             <Card className="card-elegant">
               <CardContent className="pt-6">
                 <div className="text-center space-y-2">
@@ -452,7 +433,6 @@ const ItemDetails = () => {
                 <Separator className="my-4" />
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
-                    {/* Replaced "Views" with "Total Database Items" (Social Proof) */}
                     <div className="text-lg font-semibold flex items-center justify-center gap-1">
                       <Database className="h-4 w-4 text-primary" />
                       {globalStats.total_items}

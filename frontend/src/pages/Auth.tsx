@@ -5,9 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus, LogIn, Mail, Lock, User, Phone } from "lucide-react";
+import { Search, UserPlus, LogIn, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+
+// --- DYNAMIC API URL SETUP ---
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +24,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginForm),
@@ -55,7 +58,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signupForm),
