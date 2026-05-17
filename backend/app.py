@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, request, g # IMPORT g
+from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from config import Config
 from services.db_service import DatabaseService
@@ -109,31 +109,44 @@ def create_app():
 
     return app
 
-if __name__ == '__main__':
-    from ai_models.text_processor import TextProcessor
-    from config import Config as AppConfig 
 
-    if not os.path.exists(AppConfig.TEXT_MODEL_PATH):
-        text_processor = TextProcessor(AppConfig.TEXT_MODEL_PATH)
+# ==========================================
+# PRODUCTION INITIALIZATION (Runs for Gunicorn)
+# ==========================================
+
+# 1. Initialize the app globally so Gunicorn can find it
+app = create_app()
+
+# 2. Ensure AI models are initialized before the server starts accepting requests
+from ai_models.text_processor import TextProcessor
+from config import Config as AppConfig 
+
+if not os.path.exists(AppConfig.TEXT_MODEL_PATH):
+    text_processor = TextProcessor(AppConfig.TEXT_MODEL_PATH)
+    
+    # --- FINAL VERIFIED CORPUS FOR ALL REGULAR ITEMS ---
+    text_processor.fit_vectorizer([
+        # --- 1. Electronics & Accessories ---
+        "phone", "mobile", "cell", "smartphone", "iphone", "samsung", "pixel",
+        "laptop", "macbook", "dell", "hp", "charger", "cable", "headphones", 
+        "earbuds", "airpods", "tablet", "watch", "smartwatch", "kindle",
         
-        # --- FINAL VERIFIED CORPUS FOR ALL REGULAR ITEMS ---
-        text_processor.fit_vectorizer([
-            # --- 1. Electronics & Accessories ---
-            "phone", "mobile", "cell", "smartphone", "iphone", "samsung", "pixel",
-            "laptop", "macbook", "dell", "hp", "charger", "cable", "headphones", 
-            "earbuds", "airpods", "tablet", "watch", "smartwatch", "kindle",
-            
-            # --- 2. Personal Items & Bags ---
-            "wallet", "purse", "handbag", "backpack", "satchel", "bag", "fanny", 
-            "passport", "license", "card", "id card", "keys", "keychain", "lanyard",
-            "sunglasses", "glasses", "ring", "necklace", "jewelry", "watch",
-            
-            # --- 3. Colors, Brands, and Descriptors ---
-            "black", "white", "silver", "gray", "red", "blue", "green", "pink",
-            "leather", "canvas", "plastic", "metal", "small", "large", "new", "old",
-            "broken", "cracked", "bumpy", "scratched", "initials",
-            "found", "lost", "by", "near", "pro", "max", "mini", "note", "fold"
-        ])
+        # --- 2. Personal Items & Bags ---
+        "wallet", "purse", "handbag", "backpack", "satchel", "bag", "fanny", 
+        "passport", "license", "card", "id card", "keys", "keychain", "lanyard",
+        "sunglasses", "glasses", "ring", "necklace", "jewelry", "watch",
+        
+        # --- 3. Colors, Brands, and Descriptors ---
+        "black", "white", "silver", "gray", "red", "blue", "green", "pink",
+        "leather", "canvas", "plastic", "metal", "small", "large", "new", "old",
+        "broken", "cracked", "bumpy", "scratched", "initials",
+        "found", "lost", "by", "near", "pro", "max", "mini", "note", "fold"
+    ])
 
-    app = create_app()
+
+# ==========================================
+# LOCAL DEVELOPMENT ONLY
+# ==========================================
+if __name__ == '__main__':
+    # This block will ONLY run if you execute `python app.py` locally
     app.run(host='0.0.0.0', port=5000, debug=True)
