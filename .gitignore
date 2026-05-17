@@ -1,0 +1,14 @@
+# Environments
+venv/
+env/
+.env
+
+# Python byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Node modules (just in case they are in the same folder)
+node_modules/
+
+# Uploads
+static/uploads/
