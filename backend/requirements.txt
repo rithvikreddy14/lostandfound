@@ -5,7 +5,7 @@ python-dotenv
 Werkzeug
 numpy
 Pillow
-tensorflow
+tensorflow-cpu
 scikit-learn
 pymongo
 Flask-Bcrypt
