@@ -1,3 +1,4 @@
+import os
 from celery import Celery
 from flask import Flask
 from config import Config
@@ -18,9 +19,10 @@ celery_app.conf.update(
     include=['ai_models.tasks']
 )
 
-# A fix for Windows environments. It forces Celery to use a single process for local development.
-celery_app.conf.update(
-    task_always_eager=True,
-    task_eager_propagates=True,
-    worker_concurrency=1
-)
+# ONLY use eager mode if running locally. Render automatically sets the 'RENDER' environment variable.
+if os.environ.get('RENDER') is None:
+    celery_app.conf.update(
+        task_always_eager=True,
+        task_eager_propagates=True,
+        worker_concurrency=1
+    )
