@@ -9,15 +9,22 @@ def send_match_notification_email(sender_item, receiver_item, match, app_config)
     """Sends a match notification email to one user about the other."""
     
     smtp_server = app_config.get('MAIL_SERVER')
-    smtp_port = app_config.get('MAIL_PORT')
+    # CRITICAL FIX 1: Force port to be an integer
+    try:
+        smtp_port = int(app_config.get('MAIL_PORT', 587))
+    except ValueError:
+        smtp_port = 587
+        
     smtp_user = app_config.get('MAIL_USERNAME')
     smtp_password = app_config.get('MAIL_PASSWORD')
-    smtp_sender = app_config.get('MAIL_DEFAULT_SENDER')
+    
+    # CRITICAL FIX 2: Fallback to smtp_user if MAIL_DEFAULT_SENDER is missing
+    smtp_sender = app_config.get('MAIL_DEFAULT_SENDER') or smtp_user
     
     receiver_email = receiver_item.get('user', {}).get('email')
     
     if not smtp_server or not smtp_user or not smtp_password or not receiver_email:
-        email_logger.error(f"Email configuration or receiver address missing. Skipping notification.")
+        email_logger.error("Email configuration or receiver address missing. Skipping notification.")
         return
 
     msg = MIMEMultipart("alternative")
@@ -30,15 +37,19 @@ def send_match_notification_email(sender_item, receiver_item, match, app_config)
     
     html_content = f"""
     <html>
-        <body>
-            <p>Hi {receiver_item.get('user', {}).get('name', 'User')},</p>
-            <p>Good news! Our AI engine has found a potential match for your reported item, <b>{receiver_item['title']}</b>.</p>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2c3e50;">Good news! We found a potential match!</h2>
+            <p>Our AI system has identified a <b>{score_percentage}%</b> match for the item you reported.</p>
             
-            <p style="font-size: 18px; font-weight: bold; color: {score_color};">
-                Overall Match Confidence: {score_percentage}%
-            </p>
-            
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; background-color: #f8f8f8; border: 1px solid #ddd;">
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr style="background-color: #f8f9fa;">
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Match Metrics</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Score</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Overall Match</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; color: {score_color}; font-weight: bold;">{score_percentage}%</td>
+                </tr>
                 <tr>
                     <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Image Match</td>
                     <td style="padding: 10px; border: 1px solid #ddd;">{round(match['imageScore'] * 100)}%</td>
@@ -66,10 +77,11 @@ def send_match_notification_email(sender_item, receiver_item, match, app_config)
     msg.attach(MIMEText(html_content, 'html'))
     
     try:
+        email_logger.info(f"Attempting to send email to {receiver_email}...")
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(smtp_user, smtp_password)
-            server.sendmail(msg['From'], msg['To'], msg.as_string())
-        email_logger.info(f"SUCCESS: Match notification sent to {receiver_email}")
+            server.send_message(msg)
+        email_logger.info(f"Successfully sent match email to {receiver_email}")
     except Exception as e:
-        email_logger.error(f"Failed to send email to {receiver_email}: {e}")
+        email_logger.error(f"Failed to send email to {receiver_email}. Error: {e}")
