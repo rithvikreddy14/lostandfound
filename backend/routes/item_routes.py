@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify, g # IMPORT g
+from flask import Blueprint, request, jsonify, g
+import traceback
 
 def create_item_bp(db_service, item_service, token_required):
     bp = Blueprint('item_routes', __name__)
@@ -17,7 +18,6 @@ def create_item_bp(db_service, item_service, token_required):
         item_type = request.args.get('type', '')
         user_id_filter = request.args.get('user_id', '')
         
-        # FINAL FIX: Access user ID via g.user_id 
         authenticated_user_id = g.user_id 
 
         query = {}
@@ -29,7 +29,6 @@ def create_item_bp(db_service, item_service, token_required):
                 if authenticated_user_id:
                     query['user_id'] = authenticated_user_id
                 else:
-                    # If 'user_id=me' is requested without a valid token, FAIL (401)
                     return jsonify({"message": "Authentication required to view your items."}), 401
             else:
                 query['user_id'] = user_id_filter
@@ -70,14 +69,30 @@ def create_item_bp(db_service, item_service, token_required):
             
         from ai_models.tasks import process_new_item 
 
-        image_files = request.files.getlist('images')
-        form_data = request.form.to_dict()
+        try:
+            image_files = request.files.getlist('images')
+            form_data = request.form.to_dict()
 
-        new_item_id = item_service.create_item(user_id, form_data, image_files)
+            # Save the item to the database
+            new_item_id = item_service.create_item(user_id, form_data, image_files)
+            
+            # CRITICAL FIX 1: Convert ObjectId to string to prevent JSON/Celery serialization crashes
+            safe_item_id = str(new_item_id)
 
-        process_new_item.delay(new_item_id)
+            # CRITICAL FIX 2: Wrap Celery call in try/except so Redis timeouts don't break the upload
+            try:
+                process_new_item.delay(safe_item_id)
+            except Exception as celery_err:
+                print(f"⚠️ Celery/Redis Warning: {celery_err}")
+                print("The item was saved, but background AI processing failed to start.")
+            
+            return jsonify({"id": safe_item_id, "message": "Item created successfully"}), 201
         
-        return jsonify({"id": new_item_id, "message": "Item created successfully"}), 201
+        except Exception as e:
+            # CRITICAL FIX 3: Catch any backend crashes and print them exactly to Render logs
+            print("❌ UPLOAD CRASHED:")
+            traceback.print_exc()
+            return jsonify({"message": f"Server Error during upload: {str(e)}"}), 500
 
     @bp.route('/<item_id>', methods=['PUT'])
     @token_required
