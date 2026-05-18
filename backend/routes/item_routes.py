@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, g
+import threading
 import traceback
 
 def create_item_bp(db_service, item_service, token_required):
@@ -29,16 +30,11 @@ def create_item_bp(db_service, item_service, token_required):
                 if authenticated_user_id:
                     query['user_id'] = authenticated_user_id
                 else:
-                    return jsonify({"message": "Authentication required to view your items."}), 401
+                    return jsonify({"message": "Authentication required."}), 401
             else:
                 query['user_id'] = user_id_filter
         
-        items = item_service.find_all_items(
-            query=query, 
-            limit=limit, 
-            offset=(page - 1) * limit
-        )
-        
+        items = item_service.find_all_items(query=query, limit=limit, offset=(page - 1) * limit)
         total_items = db_service.items.collection.count_documents(query)
 
         return jsonify({
@@ -56,9 +52,7 @@ def create_item_bp(db_service, item_service, token_required):
         item = db_service.items.find_item_by_id(item_id)
         if not item:
             return jsonify({"message": "Item not found"}), 404
-
-        is_owner = False
-        return jsonify({"item": item, "is_owner": is_owner}), 200
+        return jsonify({"item": item, "is_owner": False}), 200
 
     @bp.route('', methods=['POST'])
     @token_required
@@ -75,21 +69,19 @@ def create_item_bp(db_service, item_service, token_required):
 
             # Save the item to the database
             new_item_id = item_service.create_item(user_id, form_data, image_files)
-            
-            # CRITICAL FIX 1: Convert ObjectId to string to prevent JSON/Celery serialization crashes
             safe_item_id = str(new_item_id)
 
-            # CRITICAL FIX 2: Wrap Celery call in try/except so Redis timeouts don't break the upload
+            # === FREE TIER FIX: USE PYTHON THREADING INSTEAD OF CELERY ===
             try:
-                process_new_item.delay(safe_item_id)
-            except Exception as celery_err:
-                print(f"⚠️ Celery/Redis Warning: {celery_err}")
-                print("The item was saved, but background AI processing failed to start.")
+                thread = threading.Thread(target=process_new_item, args=(safe_item_id,))
+                thread.daemon = True  # Allows the server to stop even if the thread is running
+                thread.start()
+            except Exception as thread_err:
+                print(f"⚠️ Threading Warning: {thread_err}")
             
             return jsonify({"id": safe_item_id, "message": "Item created successfully"}), 201
         
         except Exception as e:
-            # CRITICAL FIX 3: Catch any backend crashes and print them exactly to Render logs
             print("❌ UPLOAD CRASHED:")
             traceback.print_exc()
             return jsonify({"message": f"Server Error during upload: {str(e)}"}), 500
@@ -98,32 +90,22 @@ def create_item_bp(db_service, item_service, token_required):
     @token_required
     def update_item_status(item_id):
         user_id = g.user_id
-        if not user_id:
-            return jsonify({'message': 'Authentication required.'}), 401
-
+        if not user_id: return jsonify({'message': 'Authentication required.'}), 401
         item = db_service.items.find_item_by_id(item_id)
-        if not item or item['user_id'] != user_id:
-            return jsonify({"message": "Item not found or access denied"}), 403
+        if not item or item['user_id'] != user_id: return jsonify({"message": "Access denied"}), 403
             
-        data = request.get_json()
-        new_status = data.get('status')
-        
-        if new_status == 'resolved':
+        if request.get_json().get('status') == 'resolved':
             if db_service.items.update_item(item_id, {'status': 'resolved'}):
                 return jsonify({"message": "Item status updated to resolved"}), 200
-            
-        return jsonify({"message": "Invalid status update or failed to update"}), 400
+        return jsonify({"message": "Invalid status update"}), 400
 
     @bp.route('/<item_id>', methods=['DELETE']) 
     @token_required
     def delete_item(item_id):
         user_id = g.user_id
-        if not user_id:
-            return jsonify({'message': 'Authentication required.'}), 401
-
+        if not user_id: return jsonify({'message': 'Authentication required.'}), 401
         item = db_service.items.find_item_by_id(item_id)
-        if not item or item['user_id'] != user_id:
-            return jsonify({"message": "Item not found or access denied"}), 403
+        if not item or item['user_id'] != user_id: return jsonify({"message": "Access denied"}), 403
 
         if db_service.items.delete_item(item_id):
             return jsonify({"message": "Item deleted successfully"}), 200
