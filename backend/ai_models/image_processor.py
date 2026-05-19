@@ -1,23 +1,27 @@
 import tensorflow as tf
-# CRITICAL FIX: Switched from ResNet50 to MobileNetV2 to prevent Render Free Tier memory crashes (OOM)
+# CRITICAL FIX: Switched to MobileNetV2 to prevent Render Free Tier memory crashes (OOM)
 from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input
 from tensorflow.keras.preprocessing import image
 import numpy as np
 from PIL import Image
+import requests
+from io import BytesIO
 
 class ImageProcessor:
     def __init__(self, model_path):
-        # Load the pre-trained MobileNetV2 model (Lightweight and fast)
+        # Load lightweight MobileNetV2 (1280 dimensions)
         self.model = MobileNetV2(weights='imagenet', include_top=False, pooling='avg')
 
-    def get_embedding(self, img_path):
-        """Generates a feature vector for an image."""
+    def get_embedding(self, img_source):
+        """Generates a feature vector for an image (Supports Cloudinary URLs AND local)."""
         try:
-            # MobileNetV2 expects 224x224 image sizes
-            img = Image.open(img_path).resize((224, 224))
-            
-            # Safety check: If the image is a PNG with transparency (RGBA), convert it to RGB
-            # Otherwise, TensorFlow will crash when expecting 3 color channels and finding 4.
+            # If Cloudinary URL, download it into memory first
+            if img_source.startswith('http'):
+                response = requests.get(img_source)
+                img = Image.open(BytesIO(response.content)).resize((224, 224))
+            else:
+                img = Image.open(img_source).resize((224, 224))
+                
             if img.mode != 'RGB':
                 img = img.convert('RGB')
                 
@@ -25,10 +29,8 @@ class ImageProcessor:
             img_array = np.expand_dims(img_array, axis=0)
             img_array = preprocess_input(img_array)
 
-            # Get the embedding vector
             embedding = self.model.predict(img_array, verbose=0)
             return embedding.flatten()
-            
         except Exception as e:
-            print(f"Error processing image {img_path}: {e}")
+            print(f"Error processing image {img_source}: {e}")
             return None

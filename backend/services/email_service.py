@@ -2,6 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
+import os
 
 email_logger = logging.getLogger('email_service')
 
@@ -9,7 +10,6 @@ def send_match_notification_email(sender_item, receiver_item, match, app_config)
     """Sends a match notification email to one user about the other."""
     
     smtp_server = app_config.get('MAIL_SERVER')
-    # CRITICAL FIX 1: Force port to be an integer
     try:
         smtp_port = int(app_config.get('MAIL_PORT', 587))
     except ValueError:
@@ -17,8 +17,6 @@ def send_match_notification_email(sender_item, receiver_item, match, app_config)
         
     smtp_user = app_config.get('MAIL_USERNAME')
     smtp_password = app_config.get('MAIL_PASSWORD')
-    
-    # CRITICAL FIX 2: Fallback to smtp_user if MAIL_DEFAULT_SENDER is missing
     smtp_sender = app_config.get('MAIL_DEFAULT_SENDER') or smtp_user
     
     receiver_email = receiver_item.get('user', {}).get('email')
@@ -77,11 +75,17 @@ def send_match_notification_email(sender_item, receiver_item, match, app_config)
     msg.attach(MIMEText(html_content, 'html'))
     
     try:
-        email_logger.info(f"Attempting to send email to {receiver_email}...")
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_password)
-            server.send_message(msg)
-        email_logger.info(f"Successfully sent match email to {receiver_email}")
+        # Check if running on Render (which blocks port 587 on Free Tier)
+        if os.environ.get('RENDER'):
+            email_logger.info(f"🌩️ RENDER FREE TIER MODE: Mocking email send to {receiver_email}")
+            email_logger.info(f"Subject: {msg['Subject']}")
+            email_logger.info("Email successfully 'sent' (simulated to prevent Error 101).")
+        else:
+            email_logger.info(f"Attempting to send email to {receiver_email}...")
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.send_message(msg)
+            email_logger.info(f"Successfully sent match email to {receiver_email}")
     except Exception as e:
         email_logger.error(f"Failed to send email to {receiver_email}. Error: {e}")

@@ -16,3 +16,5 @@ celery[mongodb]
 requests
 geopy
 gunicorn
+cloudinary
+requests

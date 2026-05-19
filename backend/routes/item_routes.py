@@ -58,8 +58,7 @@ def create_item_bp(db_service, item_service, token_required):
     @token_required
     def create_item():
         user_id = g.user_id 
-        if not user_id:
-            return jsonify({'message': 'Authentication required.'}), 401
+        if not user_id: return jsonify({'message': 'Authentication required.'}), 401
             
         from ai_models.tasks import process_new_item 
 
@@ -67,14 +66,13 @@ def create_item_bp(db_service, item_service, token_required):
             image_files = request.files.getlist('images')
             form_data = request.form.to_dict()
 
-            # Save the item to the database
             new_item_id = item_service.create_item(user_id, form_data, image_files)
             safe_item_id = str(new_item_id)
 
-            # === FREE TIER FIX: USE PYTHON THREADING INSTEAD OF CELERY ===
+            # ZERO-COST FREE TIER HACK: Use pure Python threading instead of Celery/Redis
             try:
                 thread = threading.Thread(target=process_new_item, args=(safe_item_id,))
-                thread.daemon = True  # Allows the server to stop even if the thread is running
+                thread.daemon = True 
                 thread.start()
             except Exception as thread_err:
                 print(f"⚠️ Threading Warning: {thread_err}")

@@ -6,9 +6,10 @@ from services.db_service import DatabaseService
 from services.auth_service import AuthService
 from services.item_service import ItemService
 from functools import wraps
-import json
 import logging
-from celery_worker import celery_app
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 from routes.auth_routes import create_auth_bp
 from routes.item_routes import create_item_bp
@@ -19,6 +20,15 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     CORS(app)
+
+    # --- CLOUDINARY INITIALIZATION ---
+    if app.config.get('CLOUDINARY_CLOUD_NAME'):
+        cloudinary.config(
+            cloud_name = app.config['CLOUDINARY_CLOUD_NAME'],
+            api_key = app.config['CLOUDINARY_API_KEY'],
+            api_secret = app.config['CLOUDINARY_API_SECRET'],
+            secure = True
+        )
 
     db_service = DatabaseService(app)
     auth_service = AuthService(db_service, app.config['JWT_SECRET_KEY'])
@@ -79,7 +89,6 @@ def create_app():
 
     return app
 
-
 # ==========================================
 # PRODUCTION INITIALIZATION (Runs for Gunicorn)
 # ==========================================
@@ -88,7 +97,6 @@ app = create_app()
 from ai_models.text_processor import TextProcessor
 from config import Config as AppConfig 
 
-# Initialize Text Model globally so it works on Render
 if not os.path.exists(AppConfig.TEXT_MODEL_PATH):
     text_processor = TextProcessor(AppConfig.TEXT_MODEL_PATH)
     text_processor.fit_vectorizer([

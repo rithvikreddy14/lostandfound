@@ -5,22 +5,35 @@ from config import Config
 
 task_logger = logging.getLogger('background_tasks')
 
+# --- SPEED FIX: Cache models globally so they don't reload on every upload ---
+_ai_models_cache = {}
+
+def get_ai_models():
+    """Loads models only once and reuses them for instant processing."""
+    if not _ai_models_cache:
+        from ai_models.image_processor import ImageProcessor
+        from ai_models.text_processor import TextProcessor
+        from ai_models.matching_algorithm import MatchingAlgorithm
+        
+        task_logger.info("Initializing AI Models (This only happens once)...")
+        _ai_models_cache['image'] = ImageProcessor(model_path=Config.IMAGE_MODEL_PATH)
+        _ai_models_cache['text'] = TextProcessor(model_path=Config.TEXT_MODEL_PATH)
+        _ai_models_cache['matcher'] = MatchingAlgorithm()
+        
+    return _ai_models_cache['image'], _ai_models_cache['text'], _ai_models_cache['matcher']
+
+
 def process_new_item(item_id):
     from app import create_app
     app = create_app()
 
     from services.db_service import DatabaseService
-    from ai_models.image_processor import ImageProcessor
-    from ai_models.text_processor import TextProcessor
-    from ai_models.matching_algorithm import MatchingAlgorithm
 
     with app.app_context():
         db_service = DatabaseService(app=app)
         
         try:
-            image_processor = ImageProcessor(model_path=Config.IMAGE_MODEL_PATH)
-            text_processor = TextProcessor(model_path=Config.TEXT_MODEL_PATH)
-            matching_algorithm = MatchingAlgorithm()
+            image_processor, text_processor, matching_algorithm = get_ai_models()
         except Exception as e:
             task_logger.error(f"AI Model Initialization Failed: {e}")
             return
@@ -28,7 +41,7 @@ def process_new_item(item_id):
         new_item = db_service.items.find_item_by_id(item_id)
         if not new_item: return
 
-        # --- CRITICAL FIX 1: Parse the stringified JSON array into a real Python list ---
+        # Parse stringified JSON arrays if necessary
         image_urls = new_item.get('images', [])
         if isinstance(image_urls, str):
             try:
@@ -39,39 +52,31 @@ def process_new_item(item_id):
         img_embedding = None
         text_embedding = None
 
-        # --- CRITICAL FIX 2: Process Image correctly ---
+        # Fetch image embedding directly from Cloudinary URL
         if isinstance(image_urls, list) and len(image_urls) > 0:
             try:
                 image_url = image_urls[0]
-                image_filename = os.path.basename(image_url) 
-                image_path_on_disk = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+                # If local fallback was used, adjust path
+                if image_url.startswith('/static'):
+                     image_url = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(image_url))
                 
-                print(f"DEBUG: Looking for image at {image_path_on_disk}")
-                img_embedding = image_processor.get_embedding(image_path_on_disk)
-                if img_embedding is not None:
-                    print("DEBUG: Image Embedding Generated Successfully!")
+                img_embedding = image_processor.get_embedding(image_url)
             except Exception as e:
                 task_logger.error(f"Failed image embedding for item {item_id}: {e}")
 
-        # --- CRITICAL FIX 3: Process Text correctly ---
+        # Fetch text embedding
         description = new_item.get('description', '')
         if description:
             try:
                 text_embedding = text_processor.get_embedding(description)
-                # Ensure the text vectorizer didn't return an empty array
-                if text_embedding is not None and len(text_embedding) > 0:
-                     print("DEBUG: Text Embedding Generated Successfully!")
-                else:
-                     print("DEBUG: Text Embedding failed (Empty Array returned). TF-IDF might not be fitted.")
             except Exception as e:
                 task_logger.error(f"Failed text embedding for item {item_id}: {e}")
         
-        # Abort only if BOTH text and image generation failed
         if (img_embedding is None or len(img_embedding) == 0) and (text_embedding is None or len(text_embedding) == 0):
             task_logger.error(f"Skipping AI match: Both text and image embeddings failed for {item_id}.")
             return
 
-        # Save to MongoDB
+        # Save embeddings
         db_service.items.update_item(item_id, {
             'embedding_image': img_embedding.tolist() if img_embedding is not None else [],
             'embedding_text': text_embedding.tolist() if text_embedding is not None else []
@@ -81,7 +86,7 @@ def process_new_item(item_id):
         new_item['embedding_image'] = img_embedding.tolist() if img_embedding is not None else []
         new_item['embedding_text'] = text_embedding.tolist() if text_embedding is not None else []
 
-        # Find Matches
+        # Find Matches using dynamic Image OR Text OR
         opposite_type = 'found' if new_item['type'] == 'lost' else 'lost'
         potential_matches_query = {
             'type': opposite_type,
