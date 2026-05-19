@@ -14,8 +14,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import Map from "@/components/Map"; 
 
-// --- DYNAMIC API URL SETUP ---
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = "https://lostandfound-exc3.onrender.com/api";
 
 const steps = [
   { id: 1, title: "Item Type", description: "Lost or Found?" },
@@ -152,8 +151,7 @@ const AddItem = () => {
     });
     
     try {
-      // DYNAMIC URL ADDED HERE
-      const response = await fetch(`${API_BASE_URL}/items`, {
+      const response = await fetch(`${API_URL}/items`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: form,

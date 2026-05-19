@@ -47,6 +47,10 @@ class ItemModel:
         # 4. Ensure date is ISO format for the frontend
         if isinstance(item.get('date_occurred'), datetime):
              item['date_occurred'] = item['date_occurred'].isoformat()
+             
+        # 5. CRITICAL FIX: Serialize created_at to prevent 500 crashes
+        if isinstance(item.get('created_at'), datetime):
+             item['created_at'] = item['created_at'].isoformat()
         
         return item
 
@@ -111,11 +115,9 @@ class ItemModel:
         
         return item
 
-    # --- UPDATED: find_stats method to count ACTIVE lost items (requested fix) ---
     def find_stats(self):
         """Calculates and returns the stats for the dashboard."""
         total = self.collection.count_documents({})
-        # FIX: Count only items that are LOST AND ACTIVE
         items_still_lost = self.collection.count_documents({"type": "lost", "status": "active"}) 
         found = self.collection.count_documents({"type": "found"})
         successful_reunions = self.collection.count_documents({"status": "resolved"})

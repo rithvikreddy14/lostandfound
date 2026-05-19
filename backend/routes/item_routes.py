@@ -24,6 +24,15 @@ def create_item_bp(db_service, item_service, token_required):
         query = {}
         if item_type in ['lost', 'found']:
             query['type'] = item_type
+            
+        # --- CRITICAL FIX: Implement Search Logic ---
+        if search_query:
+            query['$or'] = [
+                {'title': {'$regex': search_query, '$options': 'i'}},
+                {'description': {'$regex': search_query, '$options': 'i'}},
+                {'tags': {'$regex': search_query, '$options': 'i'}}
+            ]
+        # --------------------------------------------
         
         if user_id_filter:
             if user_id_filter == 'me':

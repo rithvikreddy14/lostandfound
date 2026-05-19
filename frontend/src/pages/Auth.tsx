@@ -9,8 +9,7 @@ import { Search, UserPlus, LogIn, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-// --- DYNAMIC API URL SETUP ---
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = "https://lostandfound-exc3.onrender.com/api";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +23,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginForm),
@@ -58,7 +57,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+      const response = await fetch(`${API_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signupForm),
