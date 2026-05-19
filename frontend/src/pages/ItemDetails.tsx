@@ -12,7 +12,7 @@ import Map from "@/components/Map";
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"; 
 
-const API_URL = "https://lostandfound-exc3.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://lostandfound-exc3.onrender.com/api";
 
 interface UserDetails { name: string; email: string; avatar: string; rating: number; verified: boolean; }
 interface Item { _id: string; type: 'lost' | 'found'; title: string; description: string; category: string; location: string; date_occurred: string; images: string[]; tags: string[]; user: UserDetails; latitude?: number | null; longitude?: number | null; views?: number; }
@@ -48,9 +48,9 @@ const ItemDetails = () => {
         const matchesData = matchesResponse.ok ? await matchesResponse.json() : { matches: [] };
         const statsData = statsResponse.ok ? await statsResponse.json() : { total_items: 0, items_still_lost: 0, successful_reunions: 0 }; 
 
-        setItem(itemData.item);
-        setMatches(matchesData.matches);
-        setGlobalStats(statsData); 
+        setItem(itemData?.item || null);
+        setMatches(matchesData?.matches || []);
+        setGlobalStats(statsData || { total_items: 0, items_still_lost: 0, successful_reunions: 0 }); 
       } catch (err: any) {
         setError(err.message);
         toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -65,11 +65,7 @@ const ItemDetails = () => {
     if (!email) return;
     try {
       await navigator.clipboard.writeText(email);
-      toast({
-        title: "Email Copied!",
-        description: `Contact ${userName} via your mail app.`,
-        action: (<a href={`mailto:${email}`} className="text-primary underline">Open Mail App</a>),
-      });
+      toast({ title: "Email Copied!", description: `Contact ${userName} via your mail app.`, action: (<a href={`mailto:${email}`} className="text-primary underline">Open Mail App</a>) });
     } catch (err) {}
   };
 
@@ -92,16 +88,15 @@ const ItemDetails = () => {
             <Card className="card-elegant">
               <CardContent className="p-0">
                 <div className="relative">
-                  {/* CRITICAL FIX: Render Cloudinary URL directly */}
                   <motion.img
                     key={currentImage}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    src={item.images && item.images.length > 0 ? item.images[currentImage] : "/static/uploads/default_avatar.jpg"}
+                    src={item.images?.length > 0 ? item.images[currentImage] : "https://via.placeholder.com/600x400?text=No+Image"}
                     alt={item.title}
                     className="w-full h-80 object-cover rounded-t-lg"
                   />
-                  <Badge variant={item.type === 'lost' ? 'destructive' : 'secondary'} className="absolute top-4 left-4">{item.type.toUpperCase()}</Badge>
+                  <Badge variant={item.type === 'lost' ? 'destructive' : 'secondary'} className="absolute top-4 left-4">{item.type?.toUpperCase()}</Badge>
                 </div>
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
@@ -115,15 +110,17 @@ const ItemDetails = () => {
                   </div>
                   <p className="text-muted-foreground mb-6 leading-relaxed">{item.description}</p>
                   <div className="flex flex-wrap gap-2 mb-6">
-                    {item.tags.map((tag) => (<Badge key={tag} variant="outline">{tag}</Badge>))}
+                    {Array.isArray(item.tags) && item.tags.map((tag) => (<Badge key={tag} variant="outline">{tag}</Badge>))}
                   </div>
                   <Separator className="my-6" />
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-12 h-12 rounded-full border"><AvatarFallback className="bg-primary/10 text-primary"><User className="h-5 w-5" /></AvatarFallback></Avatar>
-                      <div><div className="flex items-center gap-2"><span className="font-medium">{item.user.name}</span></div></div>
+                      <div><div className="flex items-center gap-2"><span className="font-medium">{item?.user?.name || "Anonymous"}</span></div></div>
                     </div>
-                    <Button className="flex items-center gap-2" onClick={() => handleCopyAndContact(item.user.email, item.user.name)}><MessageCircle className="h-4 w-4" />Contact</Button>
+                    {item?.user?.email && (
+                        <Button className="flex items-center gap-2" onClick={() => handleCopyAndContact(item.user.email, item.user.name)}><MessageCircle className="h-4 w-4" />Contact</Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -143,7 +140,7 @@ const ItemDetails = () => {
                   matches.map((match) => (
                     <motion.div key={match.id} className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                       <div className="flex gap-3">
-                        <img src={match.image} alt={match.title} className="w-16 h-16 rounded-lg object-cover" />
+                        <img src={match.image || "https://via.placeholder.com/150?text=No+Image"} alt={match.title} className="w-16 h-16 rounded-lg object-cover" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-2">
                             <div>

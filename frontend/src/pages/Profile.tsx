@@ -11,10 +11,9 @@ import { ArrowLeft, User, Mail, Phone, Edit, Trash2, MapPin, Calendar, Trophy, T
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import Masonry from "react-masonry-css";
-import { format, parseISO } from 'date-fns';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"; 
 
-const API_URL = "https://lostandfound-exc3.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://lostandfound-exc3.onrender.com/api";
 
 interface UserData { _id: string; name: string; email: string; phone?: string; avatar?: string; joinDate?: string; verified?: boolean; stats: { totalItems: number; lostItems: number; foundItems: number; successfulMatches: number; helpedOthers: number; }; }
 interface Item { _id: string; type: 'lost' | 'found'; title: string; description: string; category: string; location: string; date_occurred: string; status: 'active' | 'matched' | 'found' | 'resolved'; images: string[]; views: number; matches: number; }
@@ -39,11 +38,13 @@ const Profile = () => {
 
       if (userResponse.ok) {
         const userData = await userResponse.json();
-        setUserData(userData.user);
+        setUserData(userData?.user || null);
       }
       if (itemsResponse.ok) {
         const itemsData = await itemsResponse.json();
-        setUserItems(itemsData.items); 
+        setUserItems(itemsData?.items || []); 
+      } else {
+        setUserItems([]);
       }
     } catch (error: any) {
       if (error.message.includes("401")) navigate("/");
@@ -76,7 +77,7 @@ const Profile = () => {
     } catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
   };
 
-  const getStatusColor = (status: string) => status === 'resolved' ? 'bg-accent/20 text-accent' : 'bg-blue-100 text-blue-800';
+  const safeItems = Array.isArray(userItems) ? userItems : [];
 
   if (isLoading || !userData) return <div className="min-h-screen flex items-center justify-center"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
@@ -89,8 +90,8 @@ const Profile = () => {
             <Card className="card-elegant sticky top-8">
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
-                  <Avatar className="h-24 w-24 mx-auto"><AvatarFallback className="text-4xl bg-primary/10 text-primary">{userData.name.split(' ').map(n => n[0]).join('')}</AvatarFallback></Avatar>
-                  <div><h2 className="text-xl font-bold text-foreground">{userData.name}</h2></div>
+                  <Avatar className="h-24 w-24 mx-auto"><AvatarFallback className="text-4xl bg-primary/10 text-primary">{userData?.name?.split(' ').map(n => n[0]).join('') || 'U'}</AvatarFallback></Avatar>
+                  <div><h2 className="text-xl font-bold text-foreground">{userData?.name}</h2></div>
                 </div>
               </CardContent>
             </Card>
@@ -98,16 +99,15 @@ const Profile = () => {
 
           <div className="lg:col-span-3">
             <Tabs defaultValue="items" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="items">My Items</TabsTrigger><TabsTrigger value="stats">Statistics</TabsTrigger></TabsList>
+              <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="items">My Items</TabsTrigger><TabsTrigger value="stats">Statistics</TabsTrigger></TabsList>
               <TabsContent value="items" className="space-y-6">
                 <Masonry breakpointCols={{default: 2, 700: 1}} className="flex w-auto gap-6" columnClassName="bg-clip-padding">
-                  {userItems.map((item, index) => (
+                  {safeItems.map((item, index) => (
                     <motion.div key={item._id} className="mb-6">
                       <Card className="card-hover">
                         <div className="relative">
-                          {/* CRITICAL FIX: Render Cloudinary URL directly */}
-                          <img src={item.images && item.images.length > 0 ? item.images[0] : "/static/uploads/default_avatar.jpg"} alt={item.title} className="w-full h-48 object-cover rounded-t-lg" />
-                          <div className="absolute top-3 left-3 flex gap-2"><Badge variant={item.type === 'lost' ? 'destructive' : 'secondary'}>{item.type.toUpperCase()}</Badge></div>
+                          <img src={item.images?.length > 0 ? item.images[0] : "https://via.placeholder.com/400x300?text=No+Image"} alt={item.title} className="w-full h-48 object-cover rounded-t-lg" />
+                          <div className="absolute top-3 left-3 flex gap-2"><Badge variant={item.type === 'lost' ? 'destructive' : 'secondary'}>{item.type?.toUpperCase()}</Badge></div>
                           <div className="absolute top-3 right-3 flex gap-2">
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0 bg-background/80 hover:bg-destructive/80 transition-colors" onClick={(e) => { e.preventDefault(); handleResolveItem(item); }} disabled={item.status === 'resolved'}><Trash2 className="h-4 w-4" /></Button>
                           </div>
