@@ -75,17 +75,12 @@ def send_match_notification_email(sender_item, receiver_item, match, app_config)
     msg.attach(MIMEText(html_content, 'html'))
     
     try:
-        # Check if running on Render (which blocks port 587 on Free Tier)
-        if os.environ.get('RENDER'):
-            email_logger.info(f"🌩️ RENDER FREE TIER MODE: Mocking email send to {receiver_email}")
-            email_logger.info(f"Subject: {msg['Subject']}")
-            email_logger.info("Email successfully 'sent' (simulated to prevent Error 101).")
-        else:
-            email_logger.info(f"Attempting to send email to {receiver_email}...")
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.send_message(msg)
-            email_logger.info(f"Successfully sent match email to {receiver_email}")
+        # The mock block has been removed. This will force a real SMTP connection.
+        email_logger.info(f"Attempting to send real email to {receiver_email} via {smtp_server}:{smtp_port}...")
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+        email_logger.info(f"Successfully sent match email to {receiver_email}")
     except Exception as e:
         email_logger.error(f"Failed to send email to {receiver_email}. Error: {e}")
