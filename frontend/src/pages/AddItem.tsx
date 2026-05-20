@@ -14,7 +14,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import Map from "@/components/Map"; 
 
-// --- DYNAMIC API URL SETUP ---
+// --- FIXED: Dynamic URL Setup ---
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://lostandfound-exc3.onrender.com/api";
 
 const steps = [

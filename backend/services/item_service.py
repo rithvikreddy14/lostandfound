@@ -26,12 +26,10 @@ class ItemService:
         for file in files:
             if file and self.allowed_file(file.filename):
                 try:
-                    # Upload directly to Cloudinary
                     upload_result = cloudinary.uploader.upload(file)
                     image_urls.append(upload_result['secure_url'])
                 except Exception as e:
                     self.app.logger.error(f"Cloudinary upload failed: {e}")
-                    # Fallback to local if Cloudinary fails (mostly for local testing)
                     filename = secure_filename(str(uuid.uuid4()) + os.path.splitext(file.filename)[1])
                     file.save(os.path.join(self.app.config['UPLOAD_FOLDER'], filename))
                     image_urls.append(f"/static/uploads/{filename}")
@@ -62,7 +60,7 @@ class ItemService:
             except ValueError:
                 pass
         elif form_data.get('location'):
-             lat, lon = self.geocode_location(form_data['location'])
+             lat, lon = self.geocode_location(form_data.get('location'))
 
         item_data = {
             "user_id": user_id,
@@ -82,4 +80,5 @@ class ItemService:
         return self.db.items.create_item(item_data)
 
     def find_all_items(self, query=None, limit=20, offset=0):
-        return self.db.items.find_all_items(query, limit, offset)
+        # CRITICAL BUG FIX: Use explicit keyword arguments so limit and skip don't get swapped!
+        return self.db.items.find_all_items(query=query, limit=limit, skip=offset)

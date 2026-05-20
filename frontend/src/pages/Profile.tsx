@@ -14,7 +14,6 @@ import Masonry from "react-masonry-css";
 import { format, parseISO } from 'date-fns';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -23,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"; 
 
-// --- DYNAMIC API URL SETUP ---
+// --- FIXED: Dynamic URL Setup ---
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://lostandfound-exc3.onrender.com/api";
 const BACKEND_URL = API_BASE_URL.replace('/api', '');
 
@@ -88,13 +87,14 @@ const Profile = () => {
 
       if (userResponse.ok) {
         const userData = await userResponse.json();
-        setUserData(userData.user);
+        setUserData(userData?.user || null);
       } else {
         throw new Error("Failed to fetch user profile.");
       }
 
       if (itemsResponse.ok) {
         const itemsData = await itemsResponse.json();
+        // FIXED: Prevents frontend crash if itemsData.items is not an array
         setUserItems(Array.isArray(itemsData.items) ? itemsData.items : []); 
       } else {
         setUserItems([]);
@@ -141,7 +141,6 @@ const Profile = () => {
       if (response.ok) {
         const updatedData = await response.json();
         setUserData(updatedData.user);
-        setIsEditing(false);
         toast({
           title: "Profile updated!",
           description: "Your profile information has been saved successfully.",
@@ -189,7 +188,6 @@ const Profile = () => {
 
       if (response.ok) {
         fetchUserProfile(); 
-        
         toast({
           title: resolutionType === 'resolved' ? "Reunion Recorded!" : "Item Deleted",
           description: resolutionType === 'resolved' 
@@ -201,11 +199,7 @@ const Profile = () => {
         throw new Error(`Failed to ${resolutionType} item.`);
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setItemToResolve(null);
     }
@@ -221,34 +215,24 @@ const Profile = () => {
     }
   };
 
-  const breakpointColumns = {
-    default: 2,
-    700: 1
-  };
+  const breakpointColumns = { default: 2, 700: 1 };
 
   if (isLoading || !userData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full"
-        />
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
-  // Safe mapping array
+  // FIXED: Safe array mapping
   const safeUserItems = Array.isArray(userItems) ? userItems : [];
 
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <Link to="/home" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Link>
+          <Link to="/home" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"><ArrowLeft className="h-4 w-4" />Back to Home</Link>
         </div>
 
         <div className="grid lg:grid-cols-4 gap-8">
@@ -261,24 +245,18 @@ const Profile = () => {
                       {userData?.name ? userData.name.split(' ').map(n => n[0]).join('') : 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  
                   <div>
-                    <h2 className="text-xl font-bold text-foreground">{userData.name}</h2>
-                    <p className="text-muted-foreground">Member since {userData.joinDate || 'N/A'}</p>
-                    {userData.verified && (
-                      <Badge variant="secondary" className="mt-2">
-                        Verified
-                      </Badge>
-                    )}
+                    <h2 className="text-xl font-bold text-foreground">{userData?.name}</h2>
+                    <p className="text-muted-foreground">Member since {userData?.joinDate || 'N/A'}</p>
+                    {userData?.verified && <Badge variant="secondary" className="mt-2">Verified</Badge>}
                   </div>
-                  
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{userData.stats.totalItems}</div>
+                      <div className="text-2xl font-bold text-primary">{userData?.stats?.totalItems || 0}</div>
                       <div className="text-xs text-muted-foreground">Total Reports</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-accent">{userData.stats.successfulMatches}</div>
+                      <div className="text-2xl font-bold text-accent">{userData?.stats?.successfulMatches || 0}</div>
                       <div className="text-xs text-muted-foreground">Reunions</div>
                     </div>
                   </div>
@@ -298,26 +276,15 @@ const Profile = () => {
               <TabsContent value="items" className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-2xl font-bold">My Items</h3>
-                  <Link to="/add-item">
-                    <Button>Add New Item</Button>
-                  </Link>
+                  <Link to="/add-item"><Button>Add New Item</Button></Link>
                 </div>
 
-                <Masonry
-                  breakpointCols={breakpointColumns}
-                  className="flex w-auto gap-6"
-                  columnClassName="bg-clip-padding"
-                >
+                <Masonry breakpointCols={breakpointColumns} className="flex w-auto gap-6" columnClassName="bg-clip-padding">
                   {safeUserItems.map((item, index) => (
-                    <motion.div
-                      key={item._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.1 }}
-                      className="mb-6"
-                    >
+                    <motion.div key={item._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: index * 0.1 }} className="mb-6">
                       <Card className="card-hover">
                         <div className="relative">
+                          {/* FIXED: Smart check for Cloudinary URLs */}
                           <img
                             src={item.images && item.images.length > 0 
                                   ? (item.images[0].startsWith('http') ? item.images[0] : `${BACKEND_URL}${item.images[0]}`) 
@@ -326,26 +293,15 @@ const Profile = () => {
                             className="w-full h-48 object-cover rounded-t-lg"
                           />
                           <div className="absolute top-3 left-3 flex gap-2">
-                            <Badge variant={item.type === 'lost' ? 'destructive' : 'secondary'}>
-                              {item.type?.toUpperCase()}
-                            </Badge>
-                            <Badge className={getStatusColor(item.status)}>
-                              {item.status}
-                            </Badge>
+                            <Badge variant={item.type === 'lost' ? 'destructive' : 'secondary'}>{item.type?.toUpperCase()}</Badge>
+                            <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
                           </div>
                           <div className="absolute top-3 right-3 flex gap-2">
-                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 bg-background/80">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 bg-background/80"><Edit className="h-4 w-4" /></Button>
                             <Button 
-                              size="sm" 
-                              variant="ghost" 
+                              size="sm" variant="ghost" 
                               className={`h-8 w-8 p-0 bg-background/80 hover:bg-destructive/80 transition-colors ${item.status === 'resolved' ? 'opacity-50 cursor-default' : ''}`}
-                              onClick={(e) => {
-                                  e.preventDefault();
-                                  handleResolveItem(item); 
-                              }}
+                              onClick={(e) => { e.preventDefault(); handleResolveItem(item); }}
                               disabled={item.status === 'resolved'}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -354,25 +310,14 @@ const Profile = () => {
                         </div>
                         <CardContent className="p-4">
                           <CardTitle className="text-lg mb-2">{item.title}</CardTitle>
-                          <CardDescription className="mb-3">
-                            {item.description}
-                          </CardDescription>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                            <MapPin className="h-4 w-4" />
-                            {item.location}
-                          </div>
+                          <CardDescription className="mb-3 line-clamp-2">{item.description}</CardDescription>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2"><MapPin className="h-4 w-4" />{item.location}</div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                            <Calendar className="h-4 w-4" />
-                            {item.date_occurred && format(parseISO(item.date_occurred), 'PPP')}
+                            <Calendar className="h-4 w-4" />{item.date_occurred && format(parseISO(item.date_occurred), 'PPP')}
                           </div>
                           <div className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-3">
-                            </div>
-                            <Link to={`/items/${item._id}`}>
-                              <Button variant="outline" size="sm">
-                                View Details
-                              </Button>
-                            </Link>
+                            <div className="flex items-center gap-3"></div>
+                            <Link to={`/items/${item._id}`}><Button variant="outline" size="sm">View Details</Button></Link>
                           </div>
                         </CardContent>
                       </Card>
@@ -385,60 +330,22 @@ const Profile = () => {
                 <Card className="card-elegant">
                   <CardHeader>
                     <div className="flex justify-between items-center">
-                      <div>
-                        <CardTitle>Profile Information</CardTitle>
-                        <CardDescription>Manage your account details</CardDescription>
-                      </div>
-                      <Button
-                        variant={isEditing ? "default" : "outline"}
-                        onClick={isEditing ? handleSave : () => setIsEditing(true)}
-                      >
-                        {isEditing ? "Save Changes" : "Edit Profile"}
-                      </Button>
+                      <div><CardTitle>Profile Information</CardTitle><CardDescription>Manage your account details</CardDescription></div>
+                      <Button variant={isEditing ? "default" : "outline"} onClick={isEditing ? handleSave : () => setIsEditing(true)}>{isEditing ? "Save Changes" : "Edit Profile"}</Button>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="name"
-                          value={userData?.name || ''}
-                          onChange={(e) => setUserData({ ...userData!, name: e.target.value })}
-                          disabled={!isEditing}
-                          className="pl-10"
-                        />
-                      </div>
+                      <div className="relative"><User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input id="name" value={userData?.name || ''} onChange={(e) => setUserData({ ...userData!, name: e.target.value })} disabled={!isEditing} className="pl-10" /></div>
                     </div>
-                    
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          type="email"
-                          value={userData?.email || ''}
-                          disabled
-                          className="pl-10"
-                        />
-                      </div>
+                      <div className="relative"><Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input id="email" type="email" value={userData?.email || ''} disabled className="pl-10" /></div>
                     </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={userData?.phone || ''}
-                          onChange={(e) => setUserData({ ...userData!, phone: e.target.value })}
-                          disabled={!isEditing}
-                          className="pl-10"
-                        />
-                      </div>
+                      <div className="relative"><Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={userData?.phone || ''} onChange={(e) => setUserData({ ...userData!, phone: e.target.value })} disabled={!isEditing} className="pl-10" /></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -450,7 +357,7 @@ const Profile = () => {
                     <CardContent className="pt-6">
                       <div className="text-center">
                         <Trophy className="h-8 w-8 text-primary mx-auto mb-2" />
-                        <div className="text-2xl font-bold text-primary">{userData?.stats.successfulMatches || 0}</div>
+                        <div className="text-2xl font-bold text-primary">{userData?.stats?.successfulMatches || 0}</div>
                         <div className="text-xs text-muted-foreground">Successful Reunions</div>
                       </div>
                     </CardContent>
@@ -460,7 +367,7 @@ const Profile = () => {
                     <CardContent className="pt-6">
                       <div className="text-center">
                         <TrendingUp className="h-8 w-8 text-accent mx-auto mb-2" />
-                        <div className="text-2xl font-bold text-accent">{userData?.stats.helpedOthers || 0}</div>
+                        <div className="text-2xl font-bold text-accent">{userData?.stats?.helpedOthers || 0}</div>
                         <div className="text-xs text-muted-foreground">People Helped</div>
                       </div>
                     </CardContent>
@@ -468,27 +375,13 @@ const Profile = () => {
                 </div>
 
                 <Card className="card-elegant">
-                  <CardHeader>
-                    <CardTitle>Activity Overview</CardTitle>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Activity Overview</CardTitle></CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-destructive">{userData?.stats.lostItems || 0}</div>
-                        <div className="text-sm text-muted-foreground">Lost Items</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-secondary-foreground">{userData?.stats.foundItems || 0}</div>
-                        <div className="text-sm text-muted-foreground">Found Items</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-primary">{userData?.stats.totalItems || 0}</div>
-                        <div className="text-sm text-muted-foreground">Total Reports</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-accent">{userData?.stats.successfulMatches || 0}</div>
-                        <div className="text-sm text-muted-foreground">Success Rate</div>
-                      </div>
+                      <div className="text-center"><div className="text-lg font-semibold text-destructive">{userData?.stats?.lostItems || 0}</div><div className="text-sm text-muted-foreground">Lost Items</div></div>
+                      <div className="text-center"><div className="text-lg font-semibold text-secondary-foreground">{userData?.stats?.foundItems || 0}</div><div className="text-sm text-muted-foreground">Found Items</div></div>
+                      <div className="text-center"><div className="text-lg font-semibold text-primary">{userData?.stats?.totalItems || 0}</div><div className="text-sm text-muted-foreground">Total Reports</div></div>
+                      <div className="text-center"><div className="text-lg font-semibold text-accent">{userData?.stats?.successfulMatches || 0}</div><div className="text-sm text-muted-foreground">Success Rate</div></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -502,31 +395,12 @@ const Profile = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Resolve or Delete "{itemToResolve?.title}"</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please confirm the status of this report. If the item was successfully reunited, choose "Resolved" to update your stats. Otherwise, choose "Delete Permanently".
-            </AlertDialogDescription>
+            <AlertDialogDescription>Please confirm the status of this report. If the item was successfully reunited, choose "Resolved" to update your stats. Otherwise, choose "Delete Permanently".</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setItemToResolve(null)}>Cancel</AlertDialogCancel>
-            
-            <Button 
-                variant="default" 
-                onClick={() => finalizeResolution('resolved')}
-                className="flex items-center gap-2"
-                disabled={itemToResolve?.status === 'resolved'}
-            >
-                <CheckCircle className="h-4 w-4" />
-                Mark as Resolved
-            </Button>
-            
-            <Button 
-                variant="destructive" 
-                onClick={() => finalizeResolution('deleted')}
-                className="flex items-center gap-2"
-            >
-                <XCircle className="h-4 w-4" />
-                Delete Permanently
-            </Button>
+            <Button variant="default" onClick={() => finalizeResolution('resolved')} className="flex items-center gap-2" disabled={itemToResolve?.status === 'resolved'}><CheckCircle className="h-4 w-4" />Mark as Resolved</Button>
+            <Button variant="destructive" onClick={() => finalizeResolution('deleted')} className="flex items-center gap-2"><XCircle className="h-4 w-4" />Delete Permanently</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

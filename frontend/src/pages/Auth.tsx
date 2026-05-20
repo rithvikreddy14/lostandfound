@@ -9,7 +9,7 @@ import { Search, UserPlus, LogIn, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-// --- DYNAMIC API URL SETUP ---
+// --- FIXED: Dynamic URL Setup ---
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://lostandfound-exc3.onrender.com/api";
 
 const Auth = () => {

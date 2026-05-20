@@ -91,7 +91,7 @@ def run_full_pipeline_test(item_id_a, item_id_b):
 
 
 # --- 5. EXECUTION ---
-ITEM_A_ID = "6a0b604d2d428ebacf53589e" # Lost ASUS TUF
-ITEM_B_ID = "6a0b64f134872419f7569946" # Found Heavy Dark Gray ASUS Laptop
+ITEM_A_ID = "6a0c067bbde399595ee4b8ce" # Lost ASUS TUF
+ITEM_B_ID = "6a0c043bbde399595ee4b8cb" # Found Heavy Dark Gray ASUS Laptop
 
 run_full_pipeline_test(ITEM_A_ID, ITEM_B_ID)
